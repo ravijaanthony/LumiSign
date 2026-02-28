@@ -61,6 +61,10 @@ Run predictions on a folder of videos:
 ```bash
 python evaluate.py --data_dir <path_to_videos>
 ```
+## 🔬 Related Research
+The architectural enhancements, preprocessing techniques, and full-stack implementation provided in this repository are discussed in detail in the following research paper:
+
+* **[A Robust and Multidisciplinary Approach to Indian Sign Language Recognition](https://www.researchgate.net/profile/Ravija-Vitharana/publication/399881048_A_Robust_and_Multidisciplinary_Approach_to_Indian_Sign_Language_Recognition/links/696e12f1abecff2489ecfe56/A-Robust-and-Multidisciplinary-Approach-to-Indian-Sign-Language-Recognition.pdf)**
 
 ---
 
