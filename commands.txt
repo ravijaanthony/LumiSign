@@ -110,50 +110,60 @@ venv/bin/python inference.py \
   --max_frame_len 169
 
 # =========================================================
-# 5) Custom nested dataset flow (train/val/test folders)
+# 5) isl-split-dataset flow (preserve existing train/test/eval)
 # =========================================================
-# Expected raw structure:
-#   <CUSTOM_DATA_DIR>/train/<class_name>/**/<video files>
-#   <CUSTOM_DATA_DIR>/val/<class_name>/**/<video files>
-#   <CUSTOM_DATA_DIR>/test/<class_name>/**/<video files>
-# Note: if you have /eval instead of /val, prepare_custom_dataset.py maps eval -> val.
-CUSTOM_DATA_DIR="/path/to/custom_dataset_root"
-CUSTOM_NAME="customisl"
-CUSTOM_PROCESSED_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data_custom"
-CUSTOM_CKPT_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/checkpoints_custom"
+# Observed structure:
+#   /home/ravijaanthony/Documents/dev/IIT/FYP/Code/isl-split-dataset/
+#     train/{bank,court,store or shop}/videos
+#     test/{bank,court,store or shop}/videos
+#     eval/{bank,court,store or shop}/videos
+#
+# IMPORTANT:
+# - Use prepare_custom_dataset.py here so your predefined split folders are preserved.
+# - Do NOT use generate_keypoints.py --scan for this dataset (that would reshuffle splits).
+ISL_SPLIT_ROOT="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/isl-split-dataset"
+ISL_DATASET_NAME="islsplit"
+ISL_PROCESSED_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data_islsplit"
+ISL_CKPT_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/checkpoints_islsplit"
 
-mkdir -p "$CUSTOM_PROCESSED_DIR" "$CUSTOM_CKPT_DIR"
+mkdir -p "$ISL_PROCESSED_DIR" "$ISL_CKPT_DIR"
 
-# 5a) Convert nested raw videos -> keypoint JSON splits + label map
+# 5a) Convert split folders -> keypoint JSONs + label_maps/label_map_islsplit.json
 venv/bin/python prepare_custom_dataset.py \
-  --data_dir "$CUSTOM_DATA_DIR" \
-  --save_dir "$CUSTOM_PROCESSED_DIR" \
-  --dataset_name "$CUSTOM_NAME" \
+  --data_dir "$ISL_SPLIT_ROOT" \
+  --save_dir "$ISL_PROCESSED_DIR" \
+  --dataset_name "$ISL_DATASET_NAME" \
   --jobs 4 \
   --use_holistic \
   --face_mode full \
   --write_placeholders
 
-# 5b) Train on custom dataset
+# 5b) Leakage check (recommended before trusting metrics)
+venv/bin/python check_split_leakage.py \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --dataset "$ISL_DATASET_NAME" \
+  --dark_suffix __dark
+
+# 5c) Train
 venv/bin/python runner.py \
-  --dataset "$CUSTOM_NAME" \
+  --dataset "$ISL_DATASET_NAME" \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir "$CUSTOM_PROCESSED_DIR" \
-  --save_path "$CUSTOM_CKPT_DIR" \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --save_path "$ISL_CKPT_DIR" \
   --batch_size 8 \
   --early_stop_metric val_loss \
   --early_stop_patience 5
 
-# 5c) Evaluate on custom test split
+# 5d) Evaluate test split
 venv/bin/python runner.py \
-  --dataset "$CUSTOM_NAME" \
+  --dataset "$ISL_DATASET_NAME" \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir "$CUSTOM_PROCESSED_DIR" \
-  --save_path "$CUSTOM_CKPT_DIR" \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --save_path "$ISL_CKPT_DIR" \
   --batch_size 1 \
   --epochs 0 \
   --eval_split test

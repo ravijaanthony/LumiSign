@@ -149,7 +149,65 @@ ls -lh /kaggle/working/lumisign_artifacts.tar.gz
 
 
 # =========================
-# 9) Alternative: custom nested dataset flow
+# 9) isl-split-dataset flow (recommended for your current dataset)
+# =========================
+# Expected Kaggle dataset layout:
+#   /kaggle/input/isl-split-dataset/isl-split-dataset/train/<class>/videos
+#   /kaggle/input/isl-split-dataset/isl-split-dataset/test/<class>/videos
+#   /kaggle/input/isl-split-dataset/isl-split-dataset/eval/<class>/videos
+# (prepare_custom_dataset.py maps eval -> val automatically)
+ISL_SPLIT_DATA_DIR="/kaggle/input/isl-split-dataset/isl-split-dataset"
+ISL_DATASET_NAME="islsplit"
+ISL_PROCESSED_DIR="/kaggle/working/islsplit_processed_data"
+ISL_CKPT_DIR="/kaggle/working/islsplit_checkpoints"
+
+mkdir -p "$ISL_PROCESSED_DIR" "$ISL_CKPT_DIR"
+cd "$REPO_WORK"
+
+# 9a) Build keypoints and label map (preserves split folders, no reshuffling)
+python prepare_custom_dataset.py \
+  --data_dir "$ISL_SPLIT_DATA_DIR" \
+  --save_dir "$ISL_PROCESSED_DIR" \
+  --dataset_name "$ISL_DATASET_NAME" \
+  --jobs 2 \
+  --use_holistic \
+  --face_mode full \
+  --write_placeholders
+
+# 9b) Leakage check (recommended)
+python check_split_leakage.py \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --dataset "$ISL_DATASET_NAME" \
+  --dark_suffix __dark
+
+# 9c) Train
+python runner.py \
+  --dataset "$ISL_DATASET_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --save_path "$ISL_CKPT_DIR" \
+  --batch_size 8 \
+  --epochs 150 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+
+# 9d) Evaluate
+python runner.py \
+  --dataset "$ISL_DATASET_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$ISL_PROCESSED_DIR" \
+  --save_path "$ISL_CKPT_DIR" \
+  --batch_size 1 \
+  --epochs 0 \
+  --eval_split test
+
+
+# =========================
+# 10) Generic custom nested dataset flow (fallback)
 # =========================
 # Use this when your raw dataset is nested and class name is the first folder
 # under each split:
@@ -164,7 +222,6 @@ CUSTOM_CKPT_DIR="/kaggle/working/custom_checkpoints"
 mkdir -p "$CUSTOM_PROCESSED_DIR" "$CUSTOM_CKPT_DIR"
 cd "$REPO_WORK"
 
-# 9a) Build keypoints from nested folders + create label_maps/label_map_<dataset>.json
 python prepare_custom_dataset.py \
   --data_dir "$CUSTOM_NESTED_DIR" \
   --save_dir "$CUSTOM_PROCESSED_DIR" \
@@ -174,7 +231,6 @@ python prepare_custom_dataset.py \
   --face_mode full \
   --write_placeholders
 
-# 9b) Train
 python runner.py \
   --dataset "$CUSTOM_DATASET_NAME" \
   --model transformer \
@@ -186,15 +242,3 @@ python runner.py \
   --epochs 150 \
   --early_stop_metric val_loss \
   --early_stop_patience 5
-
-# 9c) Evaluate
-python runner.py \
-  --dataset "$CUSTOM_DATASET_NAME" \
-  --model transformer \
-  --transformer_size large \
-  --max_frame_len 169 \
-  --data_dir "$CUSTOM_PROCESSED_DIR" \
-  --save_path "$CUSTOM_CKPT_DIR" \
-  --batch_size 1 \
-  --epochs 0 \
-  --eval_split test
