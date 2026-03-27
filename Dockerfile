@@ -3,9 +3,18 @@ FROM python:3.9
 # Create a non-root user with ID 1000 (Required by Hugging Face)
 RUN useradd -m -u 1000 user
 
-# Install Node.js (needed to build your React UI)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+# Install Node.js (for UI build) and OpenCV runtime system libs.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends \
+        nodejs \
+        ffmpeg \
+        libgl1 \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
