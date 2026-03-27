@@ -20,4 +20,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # Replace 'your-username' and 'your-repo-name' with your actual HF details
-        run: git push https://anthony01:$HF_TOKEN@huggingface.co/anthony01/LumiSign main
+        run: git push https://anthony01:$HF_TOKEN@huggingface.co/spaces/anthony01/LumiSign/tree/main
