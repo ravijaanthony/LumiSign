@@ -1,3 +1,14 @@
+---
+title: LumiSign
+emoji: 🚀
+colorFrom: blue
+colorTo: red
+sdk: gradio
+sdk_version: 4.19.2
+app_file: app.py
+pinned: false
+short_description: Indian Sign Language Recognition Web UI
+---
 # INLCUDE - Isolated Indian Sign Language Recognition
 
 ---
@@ -80,9 +91,3 @@ doi = {10.1145/3394171.3413528},
 series = {MM '20}
 }
 ```
-
-# INCLUDE
-# INCLUDE
-# INCLUDE
-# INCLUDE
-# INCLUDE
