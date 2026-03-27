@@ -6,8 +6,8 @@ DATA_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA"
 PROCESSED_DIR="$INCLUDE_DIR/processed_data"
 CHECKPOINT="$INCLUDE_DIR/transformer_large.pth"
 
-# Then recreate it on any machine with (Python 3.7-3.10 supported for mediapipe==0.10.14, 3.10 recommended):
-python3.10 -m venv venv
+# Then recreate it on any machine with (Python 3.7-3.10 supported for mediapipe==0.10.14, 3.9 recommended):
+python3.9 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 

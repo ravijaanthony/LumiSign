@@ -1,5 +1,5 @@
 # Start with a Python base image
-FROM python:3.10.0a1
+FROM python:3.9
 # Create a non-root user with ID 1000 (Required by Hugging Face)
 RUN useradd -m -u 1000 user
 

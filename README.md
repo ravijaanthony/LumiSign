@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: red
 sdk: gradio
 sdk_version: 4.19.2
-python_version: 3.10
+python_version: 3.9
 app_file: app.py
 pinned: false
 short_description: Indian Sign Language Recognition Web UI
@@ -20,7 +20,7 @@ short_description: Indian Sign Language Recognition Web UI
 Install the necessary Python dependencies:
 
 ```bash
-python3.10 -m venv venv
+python3.9 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt

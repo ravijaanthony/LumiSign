@@ -230,7 +230,7 @@ def process_video(
         raise RuntimeError(
             "mediapipe does not expose mp.solutions. "
             "This usually means an incompatible mediapipe build. "
-            "Use Python 3.10/3.11 and reinstall mediapipe==0.10.20."
+            "Use Python 3.9/3.10 and reinstall mediapipe==0.10.14."
         )
     if not os.path.isfile(path):
         warnings.warn(path + " file not found")
