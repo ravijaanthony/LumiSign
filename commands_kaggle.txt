@@ -1,0 +1,200 @@
+# Kaggle notebook commands (run as separate cells)
+# Use this file when training on Kaggle GPU.
+
+# =========================
+# 0) Paths (edit these first)
+# =========================
+REPO_INPUT="/kaggle/input/lumisign-repo/INCLUDE"   # path where this repo is attached in Kaggle
+REPO_WORK="/kaggle/working/INCLUDE"
+DATA_DIR="/kaggle/input/include50-data/DATA"       # folder containing class subfolders with videos
+PROCESSED_DIR="/kaggle/working/processed_data"
+CKPT_DIR="/kaggle/working/checkpoints"
+
+
+# =========================
+# 1) Copy repo to writable location + install deps
+# =========================
+rm -rf "$REPO_WORK"
+mkdir -p "$REPO_WORK" "$PROCESSED_DIR" "$CKPT_DIR"
+cp -r "$REPO_INPUT"/. "$REPO_WORK"/
+cd "$REPO_WORK"
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+python - <<'PY'
+import torch
+print("CUDA available:", torch.cuda.is_available())
+print("Device:", "cuda" if torch.cuda.is_available() else "cpu")
+PY
+
+
+# =========================
+# 2) Optional quick preflight (video decode sanity check)
+# =========================
+cd "$REPO_WORK"
+python generate_keypoints.py \
+  --include_dir "$DATA_DIR" \
+  --save_dir "$PROCESSED_DIR" \
+  --dataset include50 \
+  --scan \
+  --preflight \
+  --preflight_n 10
+
+
+# =========================
+# 3) Generate keypoints (train/val/test)
+# =========================
+cd "$REPO_WORK"
+rm -rf "$PROCESSED_DIR"/include50_*_keypoints
+
+python generate_keypoints.py \
+  --include_dir "$DATA_DIR" \
+  --save_dir "$PROCESSED_DIR" \
+  --dataset include50 \
+  --scan \
+  --split_seed 0 \
+  --train_ratio 0.7 \
+  --val_ratio 0.15 \
+  --clean_output \
+  --train_dark_prob 0.30 \
+  --train_dark_suffix __dark \
+  --use_holistic \
+  --face_mode full \
+  --apply_brighten \
+  --brighten_method clahe \
+  --splits all \
+  --jobs 2
+
+# If you hit RAM/worker issues in Kaggle:
+# add --no_parallel or set --jobs 1
+
+
+# =========================
+# 4) Verify leakage (must pass before trusting metrics)
+# =========================
+cd "$REPO_WORK"
+python check_split_leakage.py \
+  --data_dir "$PROCESSED_DIR" \
+  --dataset include50 \
+  --dark_suffix __dark
+
+
+# =========================
+# 5) Train model (entrypoint = runner.py)
+# =========================
+cd "$REPO_WORK"
+python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$PROCESSED_DIR" \
+  --save_path "$CKPT_DIR" \
+  --batch_size 8 \
+  --epochs 150 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+
+
+# =========================
+# 6) Evaluate only (no retrain)
+# =========================
+cd "$REPO_WORK"
+python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$PROCESSED_DIR" \
+  --save_path "$CKPT_DIR" \
+  --batch_size 1 \
+  --epochs 0 \
+  --eval_split test
+
+# Optional train-split sanity eval
+python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$PROCESSED_DIR" \
+  --save_path "$CKPT_DIR" \
+  --batch_size 1 \
+  --epochs 0 \
+  --eval_split train
+
+
+# =========================
+# 7) Single-video inference
+# =========================
+cd "$REPO_WORK"
+python inference.py \
+  --video "$DATA_DIR/Boy/MVI_3814.MOV" \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --checkpoint "$CKPT_DIR/transformer_large.pth" \
+  --max_frame_len 169
+
+
+# =========================
+# 8) Save artifacts for download from Kaggle
+# =========================
+tar -czf /kaggle/working/lumisign_artifacts.tar.gz \
+  -C /kaggle/working \
+  processed_data checkpoints
+
+ls -lh /kaggle/working/lumisign_artifacts.tar.gz
+
+
+# =========================
+# 9) Alternative: custom nested dataset flow
+# =========================
+# Use this when your raw dataset is nested and class name is the first folder
+# under each split:
+#   <CUSTOM_NESTED_DIR>/train/<class_name>/**/<videos>
+#   <CUSTOM_NESTED_DIR>/val/<class_name>/**/<videos>  (or /eval)
+#   <CUSTOM_NESTED_DIR>/test/<class_name>/**/<videos>
+CUSTOM_NESTED_DIR="/kaggle/input/my-custom-nested-dataset"
+CUSTOM_DATASET_NAME="customisl"
+CUSTOM_PROCESSED_DIR="/kaggle/working/custom_processed_data"
+CUSTOM_CKPT_DIR="/kaggle/working/custom_checkpoints"
+
+mkdir -p "$CUSTOM_PROCESSED_DIR" "$CUSTOM_CKPT_DIR"
+cd "$REPO_WORK"
+
+# 9a) Build keypoints from nested folders + create label_maps/label_map_<dataset>.json
+python prepare_custom_dataset.py \
+  --data_dir "$CUSTOM_NESTED_DIR" \
+  --save_dir "$CUSTOM_PROCESSED_DIR" \
+  --dataset_name "$CUSTOM_DATASET_NAME" \
+  --jobs 2 \
+  --use_holistic \
+  --face_mode full \
+  --write_placeholders
+
+# 9b) Train
+python runner.py \
+  --dataset "$CUSTOM_DATASET_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$CUSTOM_PROCESSED_DIR" \
+  --save_path "$CUSTOM_CKPT_DIR" \
+  --batch_size 8 \
+  --epochs 150 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+
+# 9c) Evaluate
+python runner.py \
+  --dataset "$CUSTOM_DATASET_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$CUSTOM_PROCESSED_DIR" \
+  --save_path "$CUSTOM_CKPT_DIR" \
+  --batch_size 1 \
+  --epochs 0 \
+  --eval_split test

@@ -1,35 +1,57 @@
-# ==========================================
-# PATH VARIABLES
-# ==========================================
-INCLUDE_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE"
-DATA_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA"
-PROCESSED_DIR="$INCLUDE_DIR/processed_data"
-CHECKPOINT="$INCLUDE_DIR/transformer_large.pth"
+# Run all commands from:
+cd /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE
 
-# Then recreate it on any machine with (Python 3.7-3.10 supported for mediapipe==0.10.14, 3.9 recommended):
+# =========================================================
+# 0) Setup (Python 3.9)
+# =========================================================
 python3.9 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements.txt
 
-# What to run now (recommended path)
-# Note: run these from $INCLUDE_DIR
-cd $INCLUDE_DIR
+# =========================================================
+# 1) Quick answer: which file trains the model?
+# =========================================================
+# Training entrypoint is: runner.py
+# (Do NOT run train_nn.py directly.)
 
-# 1. Sanity-check that videos are readable (this should now show 10/10):
+# If keypoints already exist in:
+#   processed_data/include50_train_keypoints
+#   processed_data/include50_val_keypoints
+#   processed_data/include50_test_keypoints
+# run this:
+venv/bin/python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
+  --save_path /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE \
+  --batch_size 8 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+
+# =========================================================
+# 2) Full pipeline (raw videos -> keypoints -> train)
+# =========================================================
+DATA_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA"
+PROCESSED_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data"
+CHECKPOINT="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/transformer_large.pth"
+
+# 2a) Optional preflight
 venv/bin/python generate_keypoints.py \
-  --include_dir $DATA_DIR \
-  --save_dir ./processed_data \
+  --include_dir "$DATA_DIR" \
+  --save_dir "$PROCESSED_DIR" \
   --dataset include50 \
   --scan \
   --preflight \
   --preflight_n 10
 
-# 2. Generate keypoints from DATA with a clean 70/15/15 split.
-# Train gets extra dark variants; validation/test stay normal.
-rm -rf processed_data/include50_*_keypoints
+# 2b) Generate keypoints
+rm -rf "$PROCESSED_DIR"/include50_*_keypoints
 venv/bin/python generate_keypoints.py \
-  --include_dir $DATA_DIR \
-  --save_dir $PROCESSED_DIR \
+  --include_dir "$DATA_DIR" \
+  --save_dir "$PROCESSED_DIR" \
   --dataset include50 \
   --scan \
   --split_seed 0 \
@@ -40,91 +62,114 @@ venv/bin/python generate_keypoints.py \
   --train_dark_suffix __dark \
   --use_holistic \
   --face_mode full \
-  --splits all \
   --apply_brighten \
-  --brighten_method clahe
-# (Shows a tqdm progress bar per split: "processing train/val/test videos")
-# Tip: add `--no_parallel` for simpler debugging, or lower `--jobs` if your machine struggles.
+  --brighten_method clahe \
+  --splits all
 
-# 2b. Verify split integrity and augmentation scope:
+# 2c) Check leakage
 venv/bin/python check_split_leakage.py \
-  --data_dir $PROCESSED_DIR \
+  --data_dir "$PROCESSED_DIR" \
   --dataset include50 \
   --dark_suffix __dark
 
-# 3. Train (same as before, but make sure you use the venv python):
+# 2d) Train
 venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir $PROCESSED_DIR \
+  --data_dir "$PROCESSED_DIR" \
+  --save_path /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE \
   --batch_size 8 \
   --early_stop_metric val_loss \
   --early_stop_patience 5
-# (This trains, saves best checkpoint by validation loss, and evaluates the test split.)
 
-# Optional: re-evaluate test split later without training again (requires existing checkpoint):
+# =========================================================
+# 3) Evaluate only (no retraining)
+# =========================================================
 venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir $PROCESSED_DIR \
-  --batch_size 1 \
-  --epochs 0
-
-# Optional: evaluate on training split for sanity-check (should be much higher than chance):
-venv/bin/python runner.py \
-  --dataset include50 \
-  --model transformer \
-  --transformer_size large \
-  --max_frame_len 169 \
-  --data_dir $PROCESSED_DIR \
+  --data_dir "$PROCESSED_DIR" \
+  --save_path /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE \
   --batch_size 1 \
   --epochs 0 \
-  --eval_split train
+  --eval_split test
 
-# 4. A demo on a single video:
+# =========================================================
+# 4) Single-video inference
+# =========================================================
 venv/bin/python inference.py \
-  --video $DATA_DIR/Boy/MVI_3814.MOV \
+  --video "$DATA_DIR/Boy/MVI_3814.MOV" \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
-  --checkpoint $CHECKPOINT \
+  --checkpoint "$CHECKPOINT" \
   --max_frame_len 169
 
-# 5. Run the backend (FastAPI):
+# =========================================================
+# 5) Custom nested dataset flow (train/val/test folders)
+# =========================================================
+# Expected raw structure:
+#   <CUSTOM_DATA_DIR>/train/<class_name>/**/<video files>
+#   <CUSTOM_DATA_DIR>/val/<class_name>/**/<video files>
+#   <CUSTOM_DATA_DIR>/test/<class_name>/**/<video files>
+# Note: if you have /eval instead of /val, prepare_custom_dataset.py maps eval -> val.
+CUSTOM_DATA_DIR="/path/to/custom_dataset_root"
+CUSTOM_NAME="customisl"
+CUSTOM_PROCESSED_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data_custom"
+CUSTOM_CKPT_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/checkpoints_custom"
+
+mkdir -p "$CUSTOM_PROCESSED_DIR" "$CUSTOM_CKPT_DIR"
+
+# 5a) Convert nested raw videos -> keypoint JSON splits + label map
+venv/bin/python prepare_custom_dataset.py \
+  --data_dir "$CUSTOM_DATA_DIR" \
+  --save_dir "$CUSTOM_PROCESSED_DIR" \
+  --dataset_name "$CUSTOM_NAME" \
+  --jobs 4 \
+  --use_holistic \
+  --face_mode full \
+  --write_placeholders
+
+# 5b) Train on custom dataset
+venv/bin/python runner.py \
+  --dataset "$CUSTOM_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$CUSTOM_PROCESSED_DIR" \
+  --save_path "$CUSTOM_CKPT_DIR" \
+  --batch_size 8 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+
+# 5c) Evaluate on custom test split
+venv/bin/python runner.py \
+  --dataset "$CUSTOM_NAME" \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir "$CUSTOM_PROCESSED_DIR" \
+  --save_path "$CUSTOM_CKPT_DIR" \
+  --batch_size 1 \
+  --epochs 0 \
+  --eval_split test
+
+
+# =========================================================
+# 6) Backend + UI
+# =========================================================
 MODEL_DATASET=include50 \
 MODEL_TYPE=transformer \
 MODEL_TRANSFORMER_SIZE=large \
 MODEL_MAX_FRAME_LEN=169 \
-MODEL_CHECKPOINT=$CHECKPOINT \
-venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 &
+MODEL_CHECKPOINT="$CHECKPOINT" \
+venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
 
-# 6. Run the React UI (Vite) in another terminal:
-cd $INCLUDE_DIR/ui
+# In a second terminal:
+cd /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/ui
 npm install
 npm run dev
-# (UI runs on http://localhost:5173 and proxies /predict to FastAPI)
-
-# Optional: build the UI and serve it from FastAPI:
-npm run build
-# (Restart the backend, then open http://localhost:8000)
-
-# ---------------------------------------------------------
-# EXTRA SCRIPT BLOCK: Darken the dataset random 30%
-# (Requires INPUT_DIR, DARK_DIR, MIXED_DIR, and SPLIT to be set)
-# ---------------------------------------------------------
-python darken_dataset.py \
-  --include_dir "$INPUT_DIR/$SPLIT" \
-  --output_dir "$DARK_DIR/$SPLIT" \
-  --darken_min 0.3 \
-  --darken_max 0.8 \
-  --ratio 0.3
-
-# Combine the dataset
-python combine_datasets.py \
-  --src_a "$INPUT_DIR/$SPLIT" \
-  --src_b "$DARK_DIR/$SPLIT" \
-  --output_dir "$MIXED_DIR/$SPLIT"

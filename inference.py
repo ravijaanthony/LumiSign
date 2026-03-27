@@ -118,12 +118,21 @@ def load_model(
     if checkpoint_path is None:
         pretrained_links = load_json("pretrained_links.json")
         model_name = _pretrained_name(dataset, model_type, transformer_size)
-        if not os.path.isfile(model_name):
-            link = pretrained_links.get(model_name)
-            if not link or link == "link":
-                raise FileNotFoundError(f"No pretrained link for {model_name}")
-            torch.hub.download_url_to_file(link, model_name, progress=True)
-        checkpoint_path = model_name
+        
+        # 1. First, check if you manually uploaded the file to the app folder
+        if os.path.isfile(model_name):
+            checkpoint_path = model_name
+        else:
+            # 2. If not, set the path to the writable /tmp directory
+            checkpoint_path = os.path.join("/tmp", model_name)
+            
+            # 3. Download it to /tmp if it isn't already there
+            if not os.path.isfile(tmp_checkpoint_path):
+                link = pretrained_links.get(model_name)
+                if not link or link == "link":
+                    raise FileNotFoundError(f"No pretrained link for {model_name}")
+                torch.hub.download_url_to_file(link, checkpoint_path, progress=True)
+            checkpoint_path = model_name
 
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model"])
