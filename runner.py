@@ -71,6 +71,18 @@ parser.add_argument(
     choices=["train", "val", "test"],
     help="split to evaluate when running evaluate",
 )
+parser.add_argument(
+    "--early_stop_metric",
+    default="val_acc",
+    choices=["val_loss", "val_acc"],
+    help="metric used for checkpointing and early stopping during training",
+)
+parser.add_argument(
+    "--early_stop_patience",
+    default=15,
+    type=int,
+    help="epochs with no improvement before early stopping",
+)
 args = parser.parse_args()
 
 

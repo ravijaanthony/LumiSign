@@ -1,0 +1,162 @@
+# Colab notebook commands (use as separate cells)
+# Format intentionally uses `%cd` and `!python`.
+
+# =========================
+# 0) Mount Drive
+# =========================
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+# =========================
+# 1) Go to repo + install deps + force CPU
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+%env CUDA_VISIBLE_DEVICES=
+
+!python -m pip install --upgrade pip
+!pip install -r requirements.txt
+
+!python - <<'PY'
+import torch
+print("CUDA available:", torch.cuda.is_available())
+print("Device:", "cuda" if torch.cuda.is_available() else "cpu")
+PY
+
+
+# =========================
+# 2) Dataset links and output folders
+# =========================
+!ln -sfn "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/MyDataset" /content/dataset_include50
+!mkdir -p /content/processed_data
+!mkdir -p /content/checkpoints
+
+# Optional: link cached dark/mixed sets if you already have them on Drive
+!ln -sfn "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/DATA_DARK" /content/DATA_DARK || true
+!ln -sfn "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/DATA_MIXED" /content/DATA_MIXED || true
+
+
+# =========================
+# 3) Sanity-check videos (same as local commands.txt)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python generate_keypoints.py \
+  --include_dir /content/dataset_include50 \
+  --save_dir /content/processed_data \
+  --dataset include50 \
+  --scan \
+  --preflight \
+  --preflight_n 10
+
+
+# =========================
+# 4) Build DATA_DARK and DATA_MIXED (if needed)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python darken_dataset.py \
+  --include_dir /content/dataset_include50 \
+  --output_dir /content/DATA_DARK \
+  --darken_min 0.3 \
+  --darken_max 0.8
+
+!python combine_datasets.py \
+  --src_a /content/dataset_include50 \
+  --src_b /content/DATA_DARK \
+  --output_dir /content/DATA_MIXED
+
+
+# =========================
+# 5) Generate keypoints from mixed data (same pipeline as local)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!rm -rf /content/processed_data/include50_*_keypoints
+
+!python generate_keypoints.py \
+  --include_dir /content/DATA_MIXED \
+  --save_dir /content/processed_data \
+  --dataset include50 \
+  --scan \
+  --use_holistic \
+  --face_mode full \
+  --apply_brighten \
+  --brighten_method clahe \
+  --splits all \
+  --split_seed 0 \
+  --jobs 2
+
+# If memory issues happen, use:
+# --jobs 1 --no_parallel
+
+
+# =========================
+# 6A) Train your model (new run)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir /content/processed_data \
+  --save_path /content/checkpoints \
+  --batch_size 8 \
+  --epochs 150
+
+
+# =========================
+# 6B) Evaluate your trained model on TEST split
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir /content/processed_data \
+  --save_path /content/checkpoints \
+  --batch_size 1 \
+  --eval_split test
+
+
+# =========================
+# 6C) Evaluate on TRAIN split (sanity check)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir /content/processed_data \
+  --save_path /content/checkpoints \
+  --batch_size 1 \
+  --eval_split train
+
+
+# =========================
+# 7) Run the model you made (single video inference)
+# =========================
+%cd "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/INCLUDE"
+
+!python inference.py \
+  --video /content/DATA_DARK/Boy/MVI_3814.MOV \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --checkpoint /content/checkpoints/transformer_large.pth \
+  --max_frame_len 169
+
+
+# =========================
+# 8) Save outputs back to Drive
+# =========================
+!mkdir -p "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/FYP_RUNS/include50"
+!cp -v /content/checkpoints/transformer_large.pth "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/FYP_RUNS/include50/" || true
+!cp -v /content/checkpoints/transformer_large.log "/content/drive/MyDrive/FYP/FYP Implementation/Final Implementation/FYP_RUNS/include50/" || true

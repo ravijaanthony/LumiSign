@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import tempfile
+import cv2
 
 import numpy as np
 import pandas as pd
@@ -170,6 +171,34 @@ def predict_video(
 
     raise RuntimeError("No frames processed from the video.")
 
+# smart brighten function that checks if the frame is too dark before applying CLAHE
+def smart_brighten(frame, darkness_threshold=80):
+    """
+    Checks if a frame is too dark. If it is, applies CLAHE to enhance 
+    the hand/pose visibility without blowing out the highlights.
+    """
+    # 1. Convert to grayscale just to calculate the average brightness
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    average_brightness = np.mean(gray)
+    
+    # 2. If it's bright enough, leave it alone to save processing time
+    if average_brightness > darkness_threshold:
+        return frame
+        
+    # 3. If it's dark, apply CLAHE to the L channel (Lightness)
+    # Convert BGR to LAB color space
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    l_channel, a, b = cv2.split(lab)
+    
+    # Apply CLAHE to the lightness channel
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    cl = clahe.apply(l_channel)
+    
+    # Merge back and convert to BGR
+    merged = cv2.merge((cl, a, b))
+    brightened_frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+    
+    return brightened_frame
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run inference on a single video")

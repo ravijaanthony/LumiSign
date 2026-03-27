@@ -65,11 +65,21 @@ def main():
     parser.add_argument("--output_dir", required=True, help="output folder for darkened dataset")
     parser.add_argument("--darken_min", default=0.3, type=float)
     parser.add_argument("--darken_max", default=0.8, type=float)
+    parser.add_argument("--ratio", default=1.0, type=float, help="ratio of videos to darken (0.0-1.0)")
     args = parser.parse_args()
 
     videos = scan_videos(args.include_dir)
     if not videos:
         raise SystemExit("No videos found in include_dir")
+    
+    # Select a subset of videos to darken based on the specified ratio
+    nums_to_darken = int(len(videos) * args.ratio)
+    print(f"Selected {nums_to_darken} out of {len(videos)} videos to darken ({args.ratio*100}%)")
+    
+    #sort and use a fixed seed so the random selection is reprodusable if run again
+    videos.sort()
+    rng = np.random.default_rng(42)
+    videos_to_darken = rng.choice(videos, size=nums_to_darken, replace=False)
 
     for src in tqdm(videos, desc="Darkening videos"):
         label = os.path.basename(os.path.dirname(src))

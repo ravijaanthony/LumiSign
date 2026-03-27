@@ -141,6 +141,24 @@ def fit(args):
     logging.basicConfig(filename=logging_path, level=logging.INFO, format="%(message)s")
     seed_everything(args.seed)
     label_map = load_label_map(args.dataset)
+    early_stop_metric = getattr(args, "early_stop_metric", "val_acc")
+    early_stop_patience = int(getattr(args, "early_stop_patience", 15))
+    if early_stop_metric not in ("val_loss", "val_acc"):
+        raise ValueError(
+            f"Unsupported early_stop_metric: {early_stop_metric}. "
+            "Expected val_loss or val_acc."
+        )
+    if early_stop_patience < 1:
+        raise ValueError("--early_stop_patience must be >= 1.")
+    metric_mode = "min" if early_stop_metric == "val_loss" else "max"
+    print(
+        f"Early stopping config: metric={early_stop_metric}, "
+        f"mode={metric_mode}, patience={early_stop_patience}"
+    )
+    logging.info(
+        f"Early stopping config: metric={early_stop_metric}, "
+        f"mode={metric_mode}, patience={early_stop_patience}"
+    )
 
     if args.use_cnn:
         train_dataset = FeaturesDatset(
@@ -217,7 +235,7 @@ def fit(args):
         model.parameters(), lr=args.learning_rate, weight_decay=0.01
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="max", factor=0.2
+        optimizer, mode=metric_mode, factor=0.2
     )
 
     if args.use_pretrained == "resume_training":
@@ -226,20 +244,21 @@ def fit(args):
         )
 
     model_path = os.path.join(args.save_path, exp_name) + ".pth"
-    es = EarlyStopping(patience=15, mode="max")
+    es = EarlyStopping(patience=early_stop_patience, mode=metric_mode)
     for epoch in range(args.epochs):
         print(f"Epoch: {epoch+1}/{args.epochs}")
         train_loss, train_acc = train(train_dataloader, model, optimizer, device)
         val_loss, val_acc = validate(val_dataloader, model, device)
+        tracked_metric_value = val_loss if early_stop_metric == "val_loss" else val_acc
         logging.info(
             "Epoch: {}, train loss: {}, train acc: {}, val loss: {}, val acc: {}".format(
                 epoch + 1, train_loss, train_acc, val_loss, val_acc
             )
         )
-        scheduler.step(val_acc)
+        scheduler.step(tracked_metric_value)
         es(
             model_path=model_path,
-            epoch_score=val_acc,
+            epoch_score=tracked_metric_value,
             model=model,
             optimizer=optimizer,
             scheduler=scheduler,

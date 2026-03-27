@@ -30,7 +30,15 @@ def darken_frame(frame: np.ndarray, factor: float) -> np.ndarray:
     return _clamp_uint8(frame.astype(np.float32) * factor)
 
 
-def brighten_frame(frame: np.ndarray, method: str = "clahe", gamma: float = 1.5) -> np.ndarray:
+def brighten_frame(frame: np.ndarray, method: str = "clahe", gamma: float = 1.5, darkness_threshold: int = 80) -> np.ndarray:
+    # the smarter way to brighten is to first check if the frame is actually dark, and only apply brighten if it is. This way we avoid over-brightening already bright frames and introducing noise.
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    average_brightness = np.mean(gray)
+    
+    # If the frame is already bright enough, return it as is to save processing time and avoid over-brightening
+    if average_brightness > darkness_threshold:
+        return frame
+    
     method = (method or "clahe").lower()
     if method == "clahe":
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)

@@ -1,6 +1,4 @@
-# INCLUDE - Isolated Indian Sign Language Recognition with Web UI
-
-This repository features an enhanced implementation of the **INCLUDE** dataset for Indian Sign Language (ISL) recognition. It introduces modern deep learning architectures, a comprehensive preprocessing pipeline, and a full-stack web interface for real-time video inference.
+# INLCUDE - Isolated Indian Sign Language Recognition
 
 ---
 
@@ -83,4 +81,8 @@ series = {MM '20}
 }
 ```
 
-> **Note:** This repository includes custom UI development and model architectural enhancements beyond the original publication.
+# INCLUDE
+# INCLUDE
+# INCLUDE
+# INCLUDE
+# INCLUDE

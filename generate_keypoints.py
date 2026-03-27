@@ -4,6 +4,7 @@ import glob
 import multiprocessing
 import argparse
 import os.path
+import shutil
 import cv2
 import mediapipe as mp
 from tqdm.auto import tqdm
@@ -223,6 +224,7 @@ def process_video(
     write_placeholders: bool = False,
     preprocess_config: PreprocessConfig | None = None,
     export_darkened_dir: str | None = None,
+    uid_suffix: str = "",
 ):
     if not hasattr(mp, "solutions"):
         raise RuntimeError(
@@ -236,6 +238,8 @@ def process_video(
 
     label = _label_from_path(path)
     uid = _uid_from_path(path, label)
+    if uid_suffix:
+        uid = f"{uid}{uid_suffix}"
 
     cap = _try_open_video(path)
     if not cap.isOpened():
@@ -501,7 +505,23 @@ def scan_include_dir_videos(include_dir: str) -> list[str]:
     return sorted(set(videos))
 
 
-def split_paths(paths: list[str], seed: int = 0, train_ratio: float = 0.8, val_ratio: float = 0.1):
+def split_paths(
+    paths: list[str], seed: int = 0, train_ratio: float = 0.8, val_ratio: float = 0.1
+):
+    if not (0.0 < train_ratio < 1.0):
+        raise ValueError(
+            f"train_ratio must be in (0, 1), got {train_ratio}. "
+            "Example: --train_ratio 0.7"
+        )
+    if not (0.0 <= val_ratio < 1.0):
+        raise ValueError(
+            f"val_ratio must be in [0, 1), got {val_ratio}. "
+            "Example: --val_ratio 0.15"
+        )
+    if train_ratio + val_ratio >= 1.0:
+        raise ValueError(
+            f"train_ratio + val_ratio must be < 1.0, got {train_ratio + val_ratio:.4f}."
+        )
     if not paths:
         return [], [], []
     rng = np.random.default_rng(seed)
@@ -517,6 +537,22 @@ def split_paths(paths: list[str], seed: int = 0, train_ratio: float = 0.8, val_r
     val = paths[n_train : n_train + n_val]
     test = paths[n_train + n_val :]
     return train, val, test
+
+
+def _hash_fraction(seed: int, path: str) -> float:
+    digest = hashlib.md5(f"{seed}|{path}".encode("utf-8")).hexdigest()
+    value = int(digest[:8], 16)
+    return value / float(2**32)
+
+
+def select_paths_by_probability(
+    paths: list[str], *, probability: float, seed: int
+) -> list[str]:
+    if probability <= 0.0:
+        return []
+    if probability >= 1.0:
+        return list(paths)
+    return [p for p in paths if _hash_fraction(seed, p) < probability]
 
 
 def load_train_test_val_paths(include_dir: str, dataset: str):
@@ -540,6 +576,7 @@ def save_keypoints(
     write_placeholders: bool,
     preprocess_config: PreprocessConfig | None,
     export_darkened_dir: str | None,
+    uid_suffix: str = "",
 ):
     save_dir = os.path.join(save_root, f"{dataset}_{mode}_keypoints")
     os.makedirs(save_dir, exist_ok=True)
@@ -562,6 +599,7 @@ def save_keypoints(
                 write_placeholders=write_placeholders,
                 preprocess_config=preprocess_config,
                 export_darkened_dir=export_darkened_dir,
+                uid_suffix=uid_suffix,
             )
         return
 
@@ -578,6 +616,7 @@ def save_keypoints(
                 write_placeholders=write_placeholders,
                 preprocess_config=preprocess_config,
                 export_darkened_dir=export_darkened_dir,
+                uid_suffix=uid_suffix,
             )
             for path in existing
         )
@@ -745,8 +784,52 @@ if __name__ == "__main__":
         type=int,
         help="seed used when --scan creates train/val/test splits",
     )
+    parser.add_argument(
+        "--train_ratio",
+        default=0.8,
+        type=float,
+        help="train split ratio used with --scan",
+    )
+    parser.add_argument(
+        "--val_ratio",
+        default=0.1,
+        type=float,
+        help="validation split ratio used with --scan",
+    )
+    parser.add_argument(
+        "--clean_output",
+        action="store_true",
+        help="delete selected split output folders before generating keypoints",
+    )
+    parser.add_argument(
+        "--train_dark_prob",
+        default=0.0,
+        type=float,
+        help="probability of creating an extra darkened sample for each train video",
+    )
+    parser.add_argument(
+        "--train_dark_suffix",
+        default="__dark",
+        type=str,
+        help="suffix added to uid for train darkened variants",
+    )
+    parser.add_argument(
+        "--train_dark_seed",
+        default=None,
+        type=int,
+        help="seed for selecting train videos for dark variants (defaults to --split_seed)",
+    )
 
     args = parser.parse_args()
+
+    if not (0.0 <= args.train_dark_prob <= 1.0):
+        raise ValueError(
+            f"--train_dark_prob must be in [0, 1], got {args.train_dark_prob}."
+        )
+    if args.train_dark_prob > 0 and not args.train_dark_suffix:
+        raise ValueError("--train_dark_suffix must be non-empty when --train_dark_prob > 0.")
+    if "/" in args.train_dark_suffix or "\\" in args.train_dark_suffix:
+        raise ValueError("--train_dark_suffix must not contain path separators.")
 
     preprocess_config = None
     if args.apply_darken or args.apply_brighten:
@@ -777,7 +860,12 @@ if __name__ == "__main__":
 
     if args.scan:
         all_paths = scan_include_dir_videos(args.include_dir)
-        train_paths, val_paths, test_paths = split_paths(all_paths, seed=args.split_seed)
+        train_paths, val_paths, test_paths = split_paths(
+            all_paths,
+            seed=args.split_seed,
+            train_ratio=args.train_ratio,
+            val_ratio=args.val_ratio,
+        )
     else:
         train_paths, val_paths, test_paths = load_train_test_val_paths(
             args.include_dir, args.dataset
@@ -794,6 +882,16 @@ if __name__ == "__main__":
         preflight_videos(paths, n=args.preflight_n)
         raise SystemExit(0)
 
+    selected_splits = (
+        ["train", "val", "test"] if args.splits == "all" else [args.splits]
+    )
+
+    if args.clean_output:
+        for split in selected_splits:
+            split_dir = os.path.join(args.save_dir, f"{args.dataset}_{split}_keypoints")
+            if os.path.isdir(split_dir):
+                shutil.rmtree(split_dir)
+                print(f"Removed existing output directory: {split_dir}")
 
     if args.splits in ("val", "all"):
         save_keypoints(
@@ -842,3 +940,41 @@ if __name__ == "__main__":
             preprocess_config=preprocess_config,
             export_darkened_dir=args.export_darkened_dir,
         )
+
+    if args.splits in ("train", "all") and args.train_dark_prob > 0:
+        train_dark_seed = (
+            args.train_dark_seed if args.train_dark_seed is not None else args.split_seed
+        )
+        train_candidates = train_paths[: args.limit] if args.limit and args.limit > 0 else train_paths
+        dark_train_paths = select_paths_by_probability(
+            train_candidates, probability=args.train_dark_prob, seed=train_dark_seed
+        )
+        print(
+            f"Selected {len(dark_train_paths)}/{len(train_candidates)} train videos "
+            f"for dark variants (prob={args.train_dark_prob}, seed={train_dark_seed})."
+        )
+        if dark_train_paths:
+            dark_preprocess_config = PreprocessConfig(
+                apply_darken=True,
+                apply_brighten=False,
+                darken_min=args.darken_min,
+                darken_max=args.darken_max,
+                brighten_method=args.brighten_method,
+                brighten_gamma_min=args.brighten_gamma_min,
+                brighten_gamma_max=args.brighten_gamma_max,
+            )
+            save_keypoints(
+                dataset=args.dataset,
+                file_paths=dark_train_paths,
+                mode="train",
+                save_root=args.save_dir,
+                n_jobs=args.jobs,
+                use_holistic=args.use_holistic,
+                face_mode=args.face_mode,
+                limit=0,
+                no_parallel=args.no_parallel,
+                write_placeholders=args.write_placeholders,
+                preprocess_config=dark_preprocess_config,
+                export_darkened_dir=args.export_darkened_dir,
+                uid_suffix=args.train_dark_suffix,
+            )

@@ -1,68 +1,78 @@
-#Then recreate it on any machine with (Python 3.10/3.11 recommended for mediapipe):
+# ==========================================
+# PATH VARIABLES
+# ==========================================
+INCLUDE_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE"
+DATA_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA"
+PROCESSED_DIR="$INCLUDE_DIR/processed_data"
+CHECKPOINT="$INCLUDE_DIR/transformer_large.pth"
+
+# Then recreate it on any machine with (Python 3.10/3.11 recommended for mediapipe):
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-#What to run now (recommended path)
-#Note: run these from /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE
+# What to run now (recommended path)
+# Note: run these from $INCLUDE_DIR
+cd $INCLUDE_DIR
 
-#1. Sanity-check that videos are readable (this should now show 10/10):
+# 1. Sanity-check that videos are readable (this should now show 10/10):
 venv/bin/python generate_keypoints.py \
---include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
---save_dir ./processed_data \
---dataset include50 \
---scan \
---preflight \
---preflight_n 10
+  --include_dir $DATA_DIR \
+  --save_dir ./processed_data \
+  --dataset include50 \
+  --scan \
+  --preflight \
+  --preflight_n 10
 
-#2. Generate keypoints using Holistic (pose + hands + face) and save eyebrow landmarks:
+# 2. Generate keypoints from DATA with a clean 70/15/15 split.
+# Train gets extra dark variants; validation/test stay normal.
 rm -rf processed_data/include50_*_keypoints
-venv/bin/python darken_dataset.py \
-    --include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
-    --output_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK \
-    --darken_min 0.3 \
-    --darken_max 0.8
-# (Shows a tqdm progress bar: "Darkening videos")
-
-#2b. Combine original + dark datasets into one mixed folder:
-venv/bin/python combine_datasets.py \
-    --src_a /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
-    --src_b /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK \
-    --output_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_MIXED
-
 venv/bin/python generate_keypoints.py \
-    --include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_MIXED \
-    --save_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
-    --dataset include50 \
-    --scan \
-    --use_holistic \
-    --face_mode full \
-    --apply_brighten \
-    --brighten_method clahe \
-    --splits all \
-    --split_seed 0
+  --include_dir $DATA_DIR \
+  --save_dir $PROCESSED_DIR \
+  --dataset include50 \
+  --scan \
+  --split_seed 0 \
+  --train_ratio 0.7 \
+  --val_ratio 0.15 \
+  --clean_output \
+  --train_dark_prob 0.30 \
+  --train_dark_suffix __dark \
+  --use_holistic \
+  --face_mode full \
+  --splits all \
+  --apply_brighten \
+  --brighten_method clahe
 # (Shows a tqdm progress bar per split: "processing train/val/test videos")
 # Tip: add `--no_parallel` for simpler debugging, or lower `--jobs` if your machine struggles.
 
-#3. Train (same as before, but make sure you use the venv python):
-venv/bin/python runner.py \
+# 2b. Verify split integrity and augmentation scope:
+venv/bin/python check_split_leakage.py \
+  --data_dir $PROCESSED_DIR \
   --dataset include50 \
-  --model transformer \
-  --transformer_size large \
-  --max_frame_len 169 \
-  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
-  --batch_size 8
+  --dark_suffix __dark
 
-# Evaluate on the test split
-# Confirms generalization on unseen data.
+# 3. Train (same as before, but make sure you use the venv python):
 venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
-  --batch_size 1
-  #--use_pretrained evaluate
+  --data_dir $PROCESSED_DIR \
+  --batch_size 8 \
+  --early_stop_metric val_loss \
+  --early_stop_patience 5
+# (This trains, saves best checkpoint by validation loss, and evaluates the test split.)
+
+# Optional: re-evaluate test split later without training again (requires existing checkpoint):
+venv/bin/python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir $PROCESSED_DIR \
+  --batch_size 1 \
+  --epochs 0
 
 # Optional: evaluate on training split for sanity-check (should be much higher than chance):
 venv/bin/python runner.py \
@@ -70,29 +80,30 @@ venv/bin/python runner.py \
   --model transformer \
   --transformer_size large \
   --max_frame_len 169 \
-  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
+  --data_dir $PROCESSED_DIR \
   --batch_size 1 \
+  --epochs 0 \
   --eval_split train
 
-#4. A demo on a single video:
+# 4. A demo on a single video:
 venv/bin/python inference.py \
-  --video /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK/Boy/MVI_3814.MOV \
+  --video $DATA_DIR/Boy/MVI_3814.MOV \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
-  --checkpoint /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/transformer_large.pth \
+  --checkpoint $CHECKPOINT \
   --max_frame_len 169
 
-#5. Run the backend (FastAPI):
+# 5. Run the backend (FastAPI):
 MODEL_DATASET=include50 \
 MODEL_TYPE=transformer \
 MODEL_TRANSFORMER_SIZE=large \
 MODEL_MAX_FRAME_LEN=169 \
-MODEL_CHECKPOINT=/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/transformer_large.pth \
-venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
+MODEL_CHECKPOINT=$CHECKPOINT \
+venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 &
 
-#6. Run the React UI (Vite) in another terminal:
-cd /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/ui
+# 6. Run the React UI (Vite) in another terminal:
+cd $INCLUDE_DIR/ui
 npm install
 npm run dev
 # (UI runs on http://localhost:5173 and proxies /predict to FastAPI)
@@ -100,3 +111,20 @@ npm run dev
 # Optional: build the UI and serve it from FastAPI:
 npm run build
 # (Restart the backend, then open http://localhost:8000)
+
+# ---------------------------------------------------------
+# EXTRA SCRIPT BLOCK: Darken the dataset random 30%
+# (Requires INPUT_DIR, DARK_DIR, MIXED_DIR, and SPLIT to be set)
+# ---------------------------------------------------------
+python darken_dataset.py \
+  --include_dir "$INPUT_DIR/$SPLIT" \
+  --output_dir "$DARK_DIR/$SPLIT" \
+  --darken_min 0.3 \
+  --darken_max 0.8 \
+  --ratio 0.3
+
+# Combine the dataset
+python combine_datasets.py \
+  --src_a "$INPUT_DIR/$SPLIT" \
+  --src_b "$DARK_DIR/$SPLIT" \
+  --output_dir "$MIXED_DIR/$SPLIT"
