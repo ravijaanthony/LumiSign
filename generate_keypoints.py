@@ -14,6 +14,7 @@ import gc
 import warnings
 import hashlib
 from contextlib import contextmanager
+from typing import Optional
 import joblib
 
 from video_preprocess import PreprocessConfig, apply_darken_then_brighten
@@ -222,8 +223,8 @@ def process_video(
     use_holistic: bool = False,
     face_mode: str = "none",
     write_placeholders: bool = False,
-    preprocess_config: PreprocessConfig | None = None,
-    export_darkened_dir: str | None = None,
+    preprocess_config: Optional[PreprocessConfig] = None,
+    export_darkened_dir: Optional[str] = None,
     uid_suffix: str = "",
 ):
     if not hasattr(mp, "solutions"):
@@ -574,8 +575,8 @@ def save_keypoints(
     limit: int,
     no_parallel: bool,
     write_placeholders: bool,
-    preprocess_config: PreprocessConfig | None,
-    export_darkened_dir: str | None,
+    preprocess_config: Optional[PreprocessConfig],
+    export_darkened_dir: Optional[str],
     uid_suffix: str = "",
 ):
     save_dir = os.path.join(save_root, f"{dataset}_{mode}_keypoints")

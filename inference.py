@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import cv2
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -95,8 +96,8 @@ def load_model(
     dataset: str,
     model_type: str,
     transformer_size: str,
-    checkpoint_path: str | None,
-    label_map_path: str | None = None,
+    checkpoint_path: Optional[str],
+    label_map_path: Optional[str] = None,
 ):
     label_map = load_json(label_map_path) if label_map_path else load_label_map(dataset)
     n_classes = len(label_map)
