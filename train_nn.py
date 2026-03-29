@@ -143,14 +143,15 @@ def fit(args):
     label_map = load_label_map(args.dataset)
     early_stop_metric = getattr(args, "early_stop_metric", "val_acc")
     early_stop_patience = int(getattr(args, "early_stop_patience", 15))
-    if early_stop_metric not in ("val_loss", "val_acc"):
+    
+    if early_stop_metric not in ("val_loss", "val_acc", "loss_gap"):
         raise ValueError(
             f"Unsupported early_stop_metric: {early_stop_metric}. "
-            "Expected val_loss or val_acc."
+            "Expected val_loss or val_acc, or loss_gap."
         )
     if early_stop_patience < 1:
         raise ValueError("--early_stop_patience must be >= 1.")
-    metric_mode = "min" if early_stop_metric == "val_loss" else "max"
+    metric_mode = "min" if early_stop_metric in ("val_loss", "loss_gap") else "max"
     print(
         f"Early stopping config: metric={early_stop_metric}, "
         f"mode={metric_mode}, patience={early_stop_patience}"
@@ -249,12 +250,17 @@ def fit(args):
         print(f"Epoch: {epoch+1}/{args.epochs}")
         train_loss, train_acc = train(train_dataloader, model, optimizer, device)
         val_loss, val_acc = validate(val_dataloader, model, device)
-        tracked_metric_value = val_loss if early_stop_metric == "val_loss" else val_acc
+        loss_gap = abs(train_loss - val_loss)
+        if early_stop_metric == "val_loss":
+            tracked_metric_value = val_loss
+        elif early_stop_metric == "val_acc":
+            tracked_metric_value = val_acc
+        else: # loss_gap
+            tracked_metric_value = loss_gap
         logging.info(
-            "Epoch: {}, train loss: {}, train acc: {}, val loss: {}, val acc: {}".format(
-                epoch + 1, train_loss, train_acc, val_loss, val_acc
+            f"epoch:{epoch} train_loss:{train_loss:.6f} val_loss:{val_loss:.6f} "
+            f"train_acc:{train_acc:.6f} val_acc:{val_acc:.6f} loss_gap:{loss_gap:.6f}"
             )
-        )
         scheduler.step(tracked_metric_value)
         es(
             model_path=model_path,

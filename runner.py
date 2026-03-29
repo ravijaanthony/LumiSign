@@ -83,6 +83,13 @@ parser.add_argument(
     type=int,
     help="epochs with no improvement before early stopping",
 )
+parser.add_argument(
+    "--early_stop_metric",
+    default="val_acc",
+    choices=["val_loss", "val_acc", "loss_gap"],  # add loss_gap
+    help="metric used for checkpointing and early stopping during training",
+)
+
 args = parser.parse_args()
 
 
