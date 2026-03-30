@@ -127,7 +127,7 @@ def load_model(
             checkpoint_path = os.path.join("/tmp", model_name)
             
             # 3. Download it to /tmp if it isn't already there
-            if not os.path.isfile(tmp_checkpoint_path):
+            if not os.path.isfile(checkpoint_path):
                 link = pretrained_links.get(model_name)
                 if not link or link == "link":
                     raise FileNotFoundError(f"No pretrained link for {model_name}")
