@@ -213,10 +213,19 @@ def smart_brighten(frame, darkness_threshold=80):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run inference on a single video")
     parser.add_argument("--video", required=True, help="path to the video file")
-    parser.add_argument("--dataset", default="include50", help="include or include50")
+    parser.add_argument(
+        "--dataset",
+        default="isl_split_dataset",
+        help="dataset key used to resolve label map and pretrained model name",
+    )
     parser.add_argument("--model", default="transformer", choices=["transformer", "lstm"])
     parser.add_argument("--transformer_size", default="small", choices=["small", "large"])
     parser.add_argument("--checkpoint", default=None, help="path to model checkpoint")
+    parser.add_argument(
+        "--label_map_path",
+        default=None,
+        help="optional explicit label map JSON path",
+    )
     parser.add_argument("--apply_darken", action="store_true", help="apply darken before brighten")
     parser.add_argument("--darken_min", default=0.3, type=float)
     parser.add_argument("--darken_max", default=0.8, type=float)
@@ -246,6 +255,7 @@ if __name__ == "__main__":
         model_type=args.model,
         transformer_size=args.transformer_size,
         checkpoint_path=args.checkpoint,
+        label_map_path=args.label_map_path,
     )
     result = predict_video(
         args.video,

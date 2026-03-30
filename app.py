@@ -14,7 +14,7 @@ APP_DIR = Path(__file__).resolve().parent
 UI_DIR = APP_DIR / "ui"
 DIST_DIR = UI_DIR / "dist"
 
-app = FastAPI(title="INCLUDE50 Sign Inference")
+app = FastAPI(title="LumiSign Sign Inference")
 
 MODEL = None
 LABEL_MAP = None
@@ -22,7 +22,7 @@ DEFAULT_LOCAL_CHECKPOINT = APP_DIR / "transformer_large.pth"
 DEFAULT_MODEL_CHECKPOINT = (
     str(DEFAULT_LOCAL_CHECKPOINT) if DEFAULT_LOCAL_CHECKPOINT.is_file() else None
 )
-MODEL_DATASET = os.getenv("MODEL_DATASET", "include50")
+MODEL_DATASET = os.getenv("MODEL_DATASET", "isl_split_dataset")
 MODEL_TYPE = os.getenv("MODEL_TYPE", "transformer")
 MODEL_TRANSFORMER_SIZE = os.getenv(
     "MODEL_TRANSFORMER_SIZE",
@@ -30,6 +30,18 @@ MODEL_TRANSFORMER_SIZE = os.getenv(
 )
 MODEL_CHECKPOINT = os.getenv("MODEL_CHECKPOINT", DEFAULT_MODEL_CHECKPOINT)
 MODEL_MAX_FRAME_LEN = int(os.getenv("MODEL_MAX_FRAME_LEN", "169"))
+
+DEFAULT_LABEL_MAP_CANDIDATES = [
+    APP_DIR / "label_maps" / f"label_map_{MODEL_DATASET}.json",
+    APP_DIR / "label_maps" / "label_map_isl_split_dataset.json",
+    APP_DIR / "label_maps" / "label_map_islsplit.json",
+]
+MODEL_LABEL_MAP_PATH = os.getenv("MODEL_LABEL_MAP_PATH")
+if not MODEL_LABEL_MAP_PATH:
+    for candidate in DEFAULT_LABEL_MAP_CANDIDATES:
+        if candidate.is_file():
+            MODEL_LABEL_MAP_PATH = str(candidate)
+            break
 
 
 @app.on_event("startup")
@@ -40,6 +52,7 @@ def _load():
         model_type=MODEL_TYPE,
         transformer_size=MODEL_TRANSFORMER_SIZE,
         checkpoint_path=MODEL_CHECKPOINT,
+        label_map_path=MODEL_LABEL_MAP_PATH,
     )
 
 

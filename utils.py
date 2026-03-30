@@ -3,6 +3,7 @@ import random
 import os
 import numpy as np
 import json
+import re
 
 
 def seed_everything(seed):
@@ -21,8 +22,48 @@ def load_json(path):
 
 
 def load_label_map(dataset):
-    file_path = f"label_maps/label_map_{dataset}.json"
-    return load_json(file_path)
+    dataset = (dataset or "").strip()
+    if not dataset:
+        raise ValueError("dataset must be a non-empty string")
+
+    dataset_lower = dataset.lower()
+    dataset_slug = re.sub(r"[^a-z0-9]+", "_", dataset_lower).strip("_")
+    dataset_compact = dataset_slug.replace("_", "")
+
+    candidate_names = [
+        f"label_map_{dataset}.json",
+        f"label_map_{dataset_lower}.json",
+        f"label_map_{dataset_slug}.json",
+        f"label_map_{dataset_compact}.json",
+    ]
+
+    # Support common aliases used for this project's ISL split dataset.
+    isl_aliases = {"isl_split_dataset", "islsplit", "islsplitdataset", "isl_split"}
+    if dataset_slug in isl_aliases or dataset_compact in isl_aliases:
+        candidate_names.extend(
+            [
+                "label_map_isl_split_dataset.json",
+                "label_map_islsplit.json",
+                "label_map_dataset.json",
+                "label_map_Dataset.json",
+            ]
+        )
+
+    seen = set()
+    candidates = []
+    for name in candidate_names:
+        if name and name not in seen:
+            seen.add(name)
+            candidates.append(os.path.join("label_maps", name))
+
+    for file_path in candidates:
+        if os.path.isfile(file_path):
+            return load_json(file_path)
+
+    searched = "\n  - ".join(candidates)
+    raise FileNotFoundError(
+        f"No label map found for dataset '{dataset}'. Tried:\n  - {searched}"
+    )
 
 
 def get_experiment_name(args):

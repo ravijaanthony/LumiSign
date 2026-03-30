@@ -80,3 +80,4 @@ Thumbs.db
 !train_test_paths/
 !models/
 .python-version
+.codex

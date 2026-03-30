@@ -122,13 +122,13 @@ venv/bin/python inference.py \
 # - Use prepare_custom_dataset.py here so your predefined split folders are preserved.
 # - Do NOT use generate_keypoints.py --scan for this dataset (that would reshuffle splits).
 ISL_SPLIT_ROOT="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/isl-split-dataset"
-ISL_DATASET_NAME="islsplit"
+ISL_DATASET_NAME="isl_split_dataset"
 ISL_PROCESSED_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data_islsplit"
 ISL_CKPT_DIR="/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/checkpoints_islsplit"
 
 mkdir -p "$ISL_PROCESSED_DIR" "$ISL_CKPT_DIR"
 
-# 5a) Convert split folders -> keypoint JSONs + label_maps/label_map_islsplit.json
+# 5a) Convert split folders -> keypoint JSONs + label_maps/label_map_isl_split_dataset.json
 venv/bin/python prepare_custom_dataset.py \
   --data_dir "$ISL_SPLIT_ROOT" \
   --save_dir "$ISL_PROCESSED_DIR" \
@@ -172,11 +172,12 @@ venv/bin/python runner.py \
 # =========================================================
 # 6) Backend + UI
 # =========================================================
-MODEL_DATASET=include50 \
+MODEL_DATASET=isl_split_dataset \
+MODEL_LABEL_MAP_PATH=/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/label_maps/label_map_isl_split_dataset.json \
 MODEL_TYPE=transformer \
 MODEL_TRANSFORMER_SIZE=large \
 MODEL_MAX_FRAME_LEN=169 \
-MODEL_CHECKPOINT="$CHECKPOINT" \
+MODEL_CHECKPOINT="$ISL_CKPT_DIR/transformer_large.pth" \
 venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
 
 # In a second terminal:

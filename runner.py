@@ -10,7 +10,10 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--seed", default=0, type=int, help="seed value")
 parser.add_argument(
-    "--dataset", default="include", type=str, help="options: include or include50"
+    "--dataset",
+    default="isl_split_dataset",
+    type=str,
+    help="dataset prefix used by label map and split folders",
 )
 parser.add_argument(
     "--use_augs",

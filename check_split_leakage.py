@@ -38,8 +38,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--dataset",
-        default="include50",
-        help="dataset prefix used in split folders (e.g. include50)",
+        default="isl_split_dataset",
+        help="dataset prefix used in split folders (e.g. isl_split_dataset)",
     )
     parser.add_argument(
         "--dark_suffix",
