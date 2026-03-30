@@ -43,5 +43,12 @@ RUN pip install --no-cache-dir uvicorn python-multipart
 # Expose the default Hugging Face port
 EXPOSE 7860
 
+# Runtime model configuration (override these from HF Space Variables if needed)
+ENV MODEL_DATASET=Dataset
+ENV MODEL_TYPE=transformer
+ENV MODEL_TRANSFORMER_SIZE=large
+ENV MODEL_MAX_FRAME_LEN=169
+ENV MODEL_CHECKPOINT=/app/transformer_large.pth
+
 # Command to run your FastAPI application using Uvicorn
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

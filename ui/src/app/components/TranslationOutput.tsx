@@ -1,16 +1,19 @@
-import { Copy, Info, MessageSquareText, Play, RotateCcw, Save, Volume2 } from 'lucide-react';
+import { Copy, Info, MessageSquareText, Play, RotateCcw, Save } from 'lucide-react';
 
 interface TranslationOutputProps {
   currentStep: number;
   isProcessing: boolean;
   onStartTranslation: () => void;
   onReset: () => void;
+  onCopy: () => void;
+  onSaveResult: () => void;
   canStart: boolean;
   prediction: {
     label: string;
     score: number;
     elapsed_ms: number;
   } | null;
+  hasSavedCurrent: boolean;
   error: string | null;
 }
 
@@ -19,8 +22,11 @@ export function TranslationOutput({
   isProcessing,
   onStartTranslation,
   onReset,
+  onCopy,
+  onSaveResult,
   canStart,
   prediction,
+  hasSavedCurrent,
   error,
 }: TranslationOutputProps) {
   const isComplete = Boolean(prediction) && !isProcessing;
@@ -45,13 +51,17 @@ export function TranslationOutput({
           <p className="text-sm text-gray-600">Translated English text with confidence score</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 rounded border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50">
+          <button
+            onClick={onCopy}
+            disabled={!prediction}
+            className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs ${
+              prediction
+                ? 'border-gray-300 hover:bg-gray-50'
+                : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+            }`}
+          >
             <Copy className="h-3.5 w-3.5" />
             Copy
-          </button>
-          <button className="flex items-center gap-1.5 rounded border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50">
-            <Volume2 className="h-3.5 w-3.5" />
-            Speak
           </button>
         </div>
       </div>
@@ -71,7 +81,7 @@ export function TranslationOutput({
           <div className="text-center">
             <MessageSquareText className="mx-auto mb-2 h-8 w-8 text-gray-300" />
             <div className="text-gray-500">Translation in progress...</div>
-            <div className="text-xs text-gray-400">Processing through LSTM model</div>
+            <div className="text-xs text-gray-400">Processing through Transformer model</div>
           </div>
         ) : (
           <div className="text-center">
@@ -84,28 +94,37 @@ export function TranslationOutput({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm text-gray-600">Accuracy Score</div>
-            <Info className="h-3.5 w-3.5 text-gray-400" />
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm text-gray-600">Accuracy Score</div>
+              <Info
+                className="h-3.5 w-3.5 text-gray-400"
+                title="Model confidence for the top predicted label"
+              />
+            </div>
+            <div className="text-2xl font-medium">{prediction ? `${confidencePercent}%` : '--%'}</div>
           </div>
-          <div className="text-2xl font-medium">{prediction ? `${confidencePercent}%` : '--%'}</div>
-        </div>
 
         <div className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm text-gray-600">Confidence Level</div>
-            <Info className="h-3.5 w-3.5 text-gray-400" />
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm text-gray-600">Confidence Level</div>
+              <Info
+                className="h-3.5 w-3.5 text-gray-400"
+                title="High: >=85%, Medium: >=60%, Low: <60%"
+              />
+            </div>
+            <div className="text-2xl font-medium">{confidenceLevel}</div>
           </div>
-          <div className="text-2xl font-medium">{confidenceLevel}</div>
-        </div>
 
         <div className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm text-gray-600">Processing Time</div>
-            <Info className="h-3.5 w-3.5 text-gray-400" />
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm text-gray-600">Processing Time</div>
+              <Info
+                className="h-3.5 w-3.5 text-gray-400"
+                title="End-to-end backend response time for this prediction"
+              />
+            </div>
+            <div className="text-2xl font-medium">{processingTime}</div>
           </div>
-          <div className="text-2xl font-medium">{processingTime}</div>
-        </div>
       </div>
 
       <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-6">
@@ -119,6 +138,7 @@ export function TranslationOutput({
 
         <div className="flex gap-3">
           <button
+            onClick={onSaveResult}
             disabled={!isComplete}
             className={`flex items-center gap-2 rounded-lg border px-6 py-2.5 ${
               isComplete
@@ -127,7 +147,7 @@ export function TranslationOutput({
             }`}
           >
             <Save className="h-4 w-4" />
-            Save Results
+            {hasSavedCurrent ? 'Saved' : 'Save Results'}
           </button>
 
           <button

@@ -19,8 +19,8 @@ export function ProcessingPipeline({ currentStep, isProcessing }: ProcessingPipe
     },
     {
       id: 3,
-      title: 'Step 3: LSTM Translation',
-      description: 'Processing through neural network model',
+      title: 'Step 3: Transformer Translation',
+      description: 'Sequence classification using the trained transformer model',
     },
     {
       id: 4,
@@ -30,6 +30,11 @@ export function ProcessingPipeline({ currentStep, isProcessing }: ProcessingPipe
   ];
 
   const getStepStatus = (stepId: number) => {
+    if (stepId === 4) {
+      if (currentStep >= 4) return 'completed';
+      if (currentStep > 0) return 'processing';
+      return 'pending';
+    }
     if (currentStep > stepId) return 'completed';
     if (currentStep === stepId) return 'processing';
     return 'pending';
@@ -97,10 +102,16 @@ export function ProcessingPipeline({ currentStep, isProcessing }: ProcessingPipe
                     <div className="mt-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-600">Progress</span>
-                        <span className="text-sm font-medium">{Math.min(currentStep * 25, 100)}%</span>
+                        <span className="text-sm font-medium">
+                          {getStepStatus(step.id) === 'completed' ? 100 : Math.min(currentStep * 25, 100)}%
+                        </span>
                       </div>
                       <Progress 
-                        value={Math.min(currentStep * 25, 100)} 
+                        value={
+                          getStepStatus(step.id) === 'completed'
+                            ? 100
+                            : Math.min(currentStep * 25, 100)
+                        } 
                         className="h-2"
                       />
                     </div>
