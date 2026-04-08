@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/predict': {
-        target: 'http://localhost:8070',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },

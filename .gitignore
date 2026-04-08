@@ -81,3 +81,4 @@ Thumbs.db
 !models/
 .python-version
 .codex
+transformer_large.pth
