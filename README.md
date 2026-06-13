@@ -523,7 +523,7 @@ For local development workflows, see `commands.txt`. This file contains all usef
 
 This project has been successfully developed and tested locally on:
 
-- **Device**: ASUS TUF Gaming A15 (AN515-57)
+- **Device**: ACER NITRO 5(AN515-57)
 - **CPU**: Intel Core i7-11800H
 - **RAM**: 32 GB
 - **Storage**: 512 GB SSD
@@ -595,7 +595,7 @@ Available at:
 
 ## Citation
 
-If you use this work, please cite the INCLUDE dataset:
+If you use the dataset, please cite the INCLUDE dataset:
 
 ```bibtex
 @inproceedings{10.1145/3394171.3413528,
@@ -611,6 +611,24 @@ series = {MM '20}
 
 ---
 
+## Citation
+
+If you use LumiSign, the methodology, or the custom 3-class Indian Sign Language dataset in your own research or projects, please cite this work:
+
+**Plain Text:**
+Vitharana, R. (2026). *LumiSign: A Robust and Multidisciplinary Approach to Indian Sign Language Recognition*. Informatics Institute of Technology (IIT) / University of Westminster (UoW).
+
+**BibTeX:**
+```bibtex
+@mastersthesis{vitharana2026lumisign,
+  author       = {Vitharana, Ravija},
+  title        = {LumiSign: A Robust and Multidisciplinary Approach to Indian Sign Language Recognition},
+  school       = {Informatics Institute of Technology / University of Westminster},
+  year         = {2026},
+  note         = {Supervised by Ms. Mohanadas Jananie}
+}
+```
+
 ## Project Status
 
 This is a research project. It has been successfully tested locally and provides a solid foundation for ISL recognition applications. The project is:
@@ -618,7 +636,7 @@ This is a research project. It has been successfully tested locally and provides
 - ✅ Fully functional for local development and inference
 - ✅ Documented with clear setup instructions and UI workflows
 - ✅ Includes proof-of-concept screenshots for visual reference
-- ✅ Tested on real hardware (ASUS TUF AN515-57)
+- ✅ Tested on real hardware (ACER NITRO 5 - AN515-57)
 - ⏳ Open for community contributions and improvements
 
 Cloud training environments (Colab, Kaggle) may require environment-specific adjustments.
