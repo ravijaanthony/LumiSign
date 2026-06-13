@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software or research, please cite it as below."
+authors:
+  - family-names: "Vitharana"
+    given-names: "Ravija"
+    # You can add your ORCID here if you have one:
+    # orcid: "https://orcid.org/0000-0000-0000-0000" 
+title: "LumiSign: A Robust and Multidisciplinary Approach to Indian Sign Language Recognition"
+version: 1.0.0
+date-released: 2024-01-01 # Update with your actual release date
+url: "https://github.com/ravijaanthony/LumiSign"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Vitharana"
+      given-names: "Ravija"
+  title: "A Robust and Multidisciplinary Approach to Indian Sign Language Recognition"
+  year: 2024 # Update with your publication year
+  # doi: "10.xxxx/xxxx" # Add your DOI if your paper has one
