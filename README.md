@@ -546,86 +546,21 @@ While the model **can** be trained locally, we recommend using cloud platforms (
 
 ---
 
-## Deployment & Hosting
+## Local Development
 
-### Current Status
-LumiSign is currently developed for **local development and testing**. The public deployment requires configuration setup and is therefore not currently hosted publicly. However, you are free to self-host using the methods below.
+LumiSign is designed for **local development and testing** only. Follow the **Quick Start** section above to run locally:
 
-### Local Hosting (Recommended for Development)
-Follow the **Quick Start** section above to run locally:
 - Backend API runs on `http://localhost:8070`
 - Frontend UI accessible at `http://localhost:8070`
 - Perfect for testing, development, and documentation purposes
 - Real-time feedback with hot-reload capabilities (npm dev mode)
 
-### Self-Hosting (Optional for Production/Public Use)
-
-If you want to host LumiSign yourself:
-
-#### Option 1: Docker Deployment
-Use the provided `Dockerfile` for containerized deployment:
-
-```bash
-docker build -t lumisign .
-docker run -p 8070:8070 \
-  -v $(pwd)/transformer_large.pth:/app/transformer_large.pth \
-  -v $(pwd)/label_maps:/app/label_maps \
-  -v $(pwd)/isl-split-dataset:/app/isl-split-dataset \
-  lumisign
-```
-
-#### Option 2: Cloud Platforms
-Deploy to any of these platforms:
-
-- **HuggingFace Spaces** (recommended for AI projects)
-  - Free tier available with CPU inference
-  - Docker support for custom environments
-  - Easy integration with model hosting
-  
-- **AWS/GCP/Azure**
-  - Flexible compute options (CPU/GPU)
-  - Better for production-grade deployments
-  - Higher cost but more control
-  
-- **Render / Railway**
-  - Free tier for CPU inference
-  - Easy git-based deployment
-  - GPU inference available on paid plans
-
-#### Option 3: Dedicated Server
-- Deploy on your own server or VPS
-- Full control over resources and configuration
-- Manage your own SSL/HTTPS setup
-
-### Requirements for Production Deployment
+### System Requirements
 
 - **Disk Space**: At least 4-5 GB (model + dependencies + dataset)
 - **RAM**: 8 GB minimum; 16 GB+ recommended for smooth concurrent requests
 - **GPU**: Optional but recommended for faster inference (2-3s → <1s per request)
 - **CPU**: Modern multi-core CPU for real-time performance
-- **Network**: Stable internet connection for deployment
-- **SSL/HTTPS**: Recommended for production (let's encrypt is free)
-
-### Configuration for Cloud Deployment
-
-When deploying to cloud platforms, ensure:
-
-1. **Environment Variables** are set correctly:
-   ```bash
-   MODEL_CHECKPOINT=/path/to/transformer_large.pth
-   MODEL_LABEL_MAP_PATH=/path/to/label_map_isl_split_dataset.json
-   MODEL_DATASET=isl_split_dataset
-   MODEL_TYPE=transformer
-   ```
-
-2. **Model & Data Access**:
-   - Upload model to cloud storage (S3, GCS, etc.) or mount as volume
-   - Dataset should be accessible (local, mounted volume, or remote storage)
-
-3. **HuggingFace Spaces Specific**:
-   - The `app_file: app.py` frontmatter in this README is pre-configured
-   - Just fork/duplicate this repo to HuggingFace to deploy
-   - GPU options available for paid accounts
 
 ---
 
@@ -683,8 +618,7 @@ This is a research project. It has been successfully tested locally and provides
 - ✅ Fully functional for local development and inference
 - ✅ Documented with clear setup instructions and UI workflows
 - ✅ Includes proof-of-concept screenshots for visual reference
-- ✅ Ready for self-hosting on cloud platforms
 - ✅ Tested on real hardware (ASUS TUF AN515-57)
 - ⏳ Open for community contributions and improvements
 
-Cloud environments (Colab, Kaggle, HuggingFace) may require environment-specific adjustments.
+Cloud training environments (Colab, Kaggle) may require environment-specific adjustments.
