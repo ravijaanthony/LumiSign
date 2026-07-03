@@ -527,7 +527,7 @@ This project has been successfully developed and tested locally on:
 - **CPU**: Intel Core i7-11800H
 - **RAM**: 32 GB
 - **Storage**: 512 GB SSD
-- **GPU**: NVIDIA RTX 3050
+- **GPU**: NVIDIA RTX 3050 (Mobile) 4GB VRAM
 - **OS**: Linux
 
 **Local Setup Validation**: All development, setup steps, and documentation workflows run without issues on this configuration. This ensures the README and local setup instructions are accurate and tested.
